@@ -70,7 +70,7 @@ def subtract_frames(current_frame_path, reference_frame_path, output_path, clip=
 
     if clip == True:
         # Clippeo entre -128 y 127, pierdo información de valores de diferencia altos
-        diff_img_adjusted = np.clip(diff_img, -128, 127).astype(np.uint8)
+        diff_img_adjusted = ((diff_img - (-128)) * (255 / (127 - (-128)))).clip(0, 255).astype(np.uint8)
 
     else:
         # Me quedo con el valor absoluto de cada valor, pierdo información de signo pero no de diferencia (misma energía en imagen residual)
