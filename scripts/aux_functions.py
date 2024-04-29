@@ -111,7 +111,7 @@ def optical_flow(current_frame_path, reference_frame_path, output_path):
     for y in range(0, flow_visualization.shape[0], step):
         for x in range(0, flow_visualization.shape[1], step):
             dx, dy = flow[y, x]
-            cv2.arrowedLine(flow_visualization, (x, y), (int(x + dx), int(y + dy)), (255, 0, 0), 1)
+            cv2.arrowedLine(flow_visualization, (x, y), (int(np.trunc(x + dx)), int(np.trunc(y + dy + 1))), (255, 0, 0), 1)
 
     # Guardar el flujo óptico como una imagen
     print(flow.shape)
@@ -158,22 +158,20 @@ def motion_correction(current_frame_path, reference_frame_path, flow_x_path, flo
     for y in range(flow.shape[0]):
         for x in range(flow.shape[1]):
             dx, dy = flow[y, x]
-            x2 = min(max(x + dx, 0), flow.shape[1] - 1)
-            y2 = min(max(y + dy, 0), flow.shape[0] - 1)
-            corrected_frame[int(y2), int(x2)] = curr_gray[y, x]
+            x2 = min(max(x - dx + 1, 0), flow.shape[1] - 1)
+            y2 = min(max(y - dy + 1, 0), flow.shape[0] - 1)
+            corrected_frame[int(np.trunc(y2)), int(np.trunc(x2))] = curr_gray[y, x]
 
-    corrected_frame_npwhere_reference_based = corrected_frame.copy()
-    # corrected_frame_npwhere_frame_based = corrected_frame.copy()
+    #Alternativa para manejar sectores sin cubrir
+    # corrected_frame_npwhere_reference_based = corrected_frame.copy()
 
-    print(corrected_frame.shape)
+    # for i in range(corrected_frame.shape[0]):
+    #     for j in range(corrected_frame.shape[1]):
+    #         corrected_frame_npwhere_reference_based[i][j] = np.where(corrected_frame_npwhere_reference_based[i][j] == 0, prev_gray[i][j], corrected_frame_npwhere_reference_based[i][j])
 
-    for i in range(corrected_frame.shape[0]):
-        for j in range(corrected_frame.shape[1]):
-            corrected_frame_npwhere_reference_based[i][j] = np.where(corrected_frame_npwhere_reference_based[i][j] == 0, prev_gray[i][j], corrected_frame_npwhere_reference_based[i][j])
-            # corrected_frame_npwhere_frame_based[i][j] = np.where(corrected_frame_npwhere_frame_based[i][j] == 0, curr_gray[i][j], corrected_frame_npwhere_frame_based[i][j])
+    cv2.imwrite(output_path, corrected_frame)
 
-        # print(np.min(corrected_frame_npwhere_frame_based))
-        # cv2.imwrite('/Users/diegosilveracoeff/Desktop/Fing/DCM/motion_corrected_frame_npwhere_reference_based.png', corrected_frame_npwhere_reference_based)
-        cv2.imwrite(output_path, corrected_frame_npwhere_reference_based)
-        # cv2.imwrite('/Users/diegosilveracoeff/Desktop/Fing/DCM/motion_corrected_frame_npwhere_frame_based.png', corrected_frame_npwhere_frame_based)
+
+    print(f"Current frame con motion correction guardado como {output_path}")
+
     return
