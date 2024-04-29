@@ -117,8 +117,11 @@ def optical_flow(current_frame_path, reference_frame_path, output_path):
     print(flow.shape)
     #flow_image = cv2.normalize(flow, None, 0, 255, cv2.NORM_MINMAX)
     np.save(os.path.join(output_path,'flow_x.npy'), flow[..., 0])
+    print(f"flow_x guardado como {os.path.join(output_path,'flow_x.npy')}")
     np.save(os.path.join(output_path,'flow_y.npy'), flow[..., 1])
+    print(f"flow_y guardado como {os.path.join(output_path,'flow_y.npy')}")
     cv2.imwrite(os.path.join(output_path,'optical_flow_visualization.png'), flow_visualization)
+    print(f"Visualización del flujo óptico guardado como {os.path.join(output_path,'optical_flow_visualization.png')}")
     # np.save('/Users/diegosilveracoeff/Desktop/Fing/DCM/flow_x.npy', flow[..., 0])
     # np.save('/Users/diegosilveracoeff/Desktop/Fing/DCM/flow_y.npy', flow[..., 1])
     # cv2.imwrite('/Users/diegosilveracoeff/Desktop/Fing/DCM/optical_flow_visualization.png', flow_visualization)
@@ -129,4 +132,48 @@ def optical_flow(current_frame_path, reference_frame_path, output_path):
     plt.axis('off')  # Ocultar ejes
     plt.show()
 
+    return
+
+def motion_correction(current_frame_path, reference_frame_path, flow_x_path, flow_y_path, output_path):
+    
+    curr_frame = cv2.imread(current_frame_path)
+    prev_frame = cv2.imread(reference_frame_path)
+    
+
+    # Convertir las imágenes a escala de grises
+    curr_gray = cv2.cvtColor(curr_frame, cv2.COLOR_BGR2GRAY)
+    prev_gray = cv2.cvtColor(prev_frame, cv2.COLOR_BGR2GRAY)
+
+    # Cargar los archivos flow_x.npy y flow_y.npy
+    flow_x = np.load(flow_x_path)
+    flow_y = np.load(flow_y_path)
+
+    # Combinar los componentes x e y para obtener la variable flow
+    flow = np.stack((flow_x, flow_y), axis=-1)
+
+
+    # Aplicar el flujo óptico al segundo frame
+    corrected_frame = np.zeros_like(curr_gray)
+    # corrected_frame = curr_gray
+    for y in range(flow.shape[0]):
+        for x in range(flow.shape[1]):
+            dx, dy = flow[y, x]
+            x2 = min(max(x + dx, 0), flow.shape[1] - 1)
+            y2 = min(max(y + dy, 0), flow.shape[0] - 1)
+            corrected_frame[int(y2), int(x2)] = curr_gray[y, x]
+
+    corrected_frame_npwhere_reference_based = corrected_frame.copy()
+    # corrected_frame_npwhere_frame_based = corrected_frame.copy()
+
+    print(corrected_frame.shape)
+
+    for i in range(corrected_frame.shape[0]):
+        for j in range(corrected_frame.shape[1]):
+            corrected_frame_npwhere_reference_based[i][j] = np.where(corrected_frame_npwhere_reference_based[i][j] == 0, prev_gray[i][j], corrected_frame_npwhere_reference_based[i][j])
+            # corrected_frame_npwhere_frame_based[i][j] = np.where(corrected_frame_npwhere_frame_based[i][j] == 0, curr_gray[i][j], corrected_frame_npwhere_frame_based[i][j])
+
+        # print(np.min(corrected_frame_npwhere_frame_based))
+        # cv2.imwrite('/Users/diegosilveracoeff/Desktop/Fing/DCM/motion_corrected_frame_npwhere_reference_based.png', corrected_frame_npwhere_reference_based)
+        cv2.imwrite(output_path, corrected_frame_npwhere_reference_based)
+        # cv2.imwrite('/Users/diegosilveracoeff/Desktop/Fing/DCM/motion_corrected_frame_npwhere_frame_based.png', corrected_frame_npwhere_frame_based)
     return
