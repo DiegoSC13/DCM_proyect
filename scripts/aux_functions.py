@@ -2,6 +2,7 @@ import cv2
 import os
 import numpy as np
 from matplotlib import pyplot as plt
+from scipy.fftpack import dctn, idctn
 
 def extract_frames(video_file, frame_nums, output_folder):
     '''
@@ -216,4 +217,22 @@ def decoder_motion_correction(current_frame_path, reference_frame_path, flow_x_p
 
     print(f"Current frame con motion correction guardado como {output_path}")
 
+    return
+
+def dct(img_path, output_path):
+    #Leo imagen 
+    img_to_transform = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE).astype(np.int16)
+
+    # Ejemplo de cálculo de la DCT
+    dct_img = dctn(img_to_transform, norm='ortho')  # DCT tipo 2
+    cv2.imwrite(output_path, dct_img)
+    return
+
+def idct(img_path, output_path):
+    #Leo imagen 
+    img_to_antitransform = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE).astype(np.int16)
+
+    # Ejemplo de cálculo de la DCT
+    dct_img = idctn(img_to_antitransform, norm='ortho')  # DCT tipo 2
+    cv2.imwrite(output_path, dct_img)
     return
