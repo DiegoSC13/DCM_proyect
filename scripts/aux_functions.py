@@ -249,3 +249,28 @@ def plot_one_img(img_path):
     plt.axis('off')  # Ocultar ejes
     plt.show()
     return
+
+def plot_two_images(img1_path, img2_path):
+
+    #Leo imágenes
+    img1 = cv2.imread(img1_path)
+    img2 = cv2.imread(img2_path)
+
+    # Crear figura y ejes para los subplots
+    fig, axs = plt.subplots(1, 2, figsize=(10, 5))
+
+    # Subplot 1
+    axs[0].imshow(img1, cmap='gray', vmin=0, vmax=np.max(img1))
+    axs[0].set_title('Coeficientes IDCT en ref_img')
+    axs[0].axis('off')
+    #plt.colorbar(ax=axs[0])
+
+    # Subplot 2
+    axs[1].imshow(img2, cmap='gray', vmin=0, vmax=np.max(img2))
+    axs[1].set_title('Coeficientes IDCT en cur_img')
+    axs[1].axis('off')
+    #plt.colorbar(ax=axs[1])
+
+    plt.tight_layout()  # Ajustar espaciado entre subplots
+    plt.show()
+    return
