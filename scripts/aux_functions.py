@@ -134,7 +134,7 @@ def optical_flow(current_frame_path, reference_frame_path, output_path):
 
     return
 
-def motion_correction(current_frame_path, reference_frame_path, flow_x_path, flow_y_path, output_path):
+def encoder_motion_correction(current_frame_path, reference_frame_path, flow_x_path, flow_y_path, output_path):
     
     curr_frame = cv2.imread(current_frame_path)
     prev_frame = cv2.imread(reference_frame_path)
