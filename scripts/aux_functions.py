@@ -236,3 +236,16 @@ def idct(img_path, output_path):
     dct_img = idctn(img_to_antitransform, norm='ortho')  # DCT tipo 2
     cv2.imwrite(output_path, dct_img)
     return
+
+def plot_one_img(img_path):
+    
+    #Leo imagen
+    img = cv2.imread(img_path)
+
+    #Ploteo
+    plt.imshow(img, cmap='gray', vmin=0, vmax=np.max(img))
+    plt.colorbar()
+    plt.title('Coeficientes DCT (log)')
+    plt.axis('off')  # Ocultar ejes
+    plt.show()
+    return
