@@ -175,3 +175,45 @@ def encoder_motion_correction(current_frame_path, reference_frame_path, flow_x_p
     print(f"Current frame con motion correction guardado como {output_path}")
 
     return
+
+def decoder_motion_correction(current_frame_path, reference_frame_path, flow_x_path, flow_y_path, output_path):
+    
+    curr_frame = cv2.imread(current_frame_path)
+    prev_frame = cv2.imread(reference_frame_path)
+    
+
+    # Convertir las imágenes a escala de grises
+    curr_gray = cv2.cvtColor(curr_frame, cv2.COLOR_BGR2GRAY)
+    prev_gray = cv2.cvtColor(prev_frame, cv2.COLOR_BGR2GRAY)
+
+    # Cargar los archivos flow_x.npy y flow_y.npy
+    flow_x = np.load(flow_x_path)
+    flow_y = np.load(flow_y_path)
+
+    # Combinar los componentes x e y para obtener la variable flow
+    flow = np.stack((flow_x, flow_y), axis=-1)
+
+
+    # Aplicar el flujo óptico al segundo frame
+    corrected_frame = np.zeros_like(curr_gray)
+    # corrected_frame = curr_gray
+    for y in range(flow.shape[0]):
+        for x in range(flow.shape[1]):
+            dx, dy = flow[y, x]
+            x2 = min(max(x + dx, 0), flow.shape[1] - 1)
+            y2 = min(max(y + dy, 0), flow.shape[0] - 1)
+            corrected_frame[int(np.trunc(y2)), int(np.trunc(x2))] = curr_gray[y, x]
+
+    #Alternativa para manejar sectores sin cubrir
+    # corrected_frame_npwhere_reference_based = corrected_frame.copy()
+
+    # for i in range(corrected_frame.shape[0]):
+    #     for j in range(corrected_frame.shape[1]):
+    #         corrected_frame_npwhere_reference_based[i][j] = np.where(corrected_frame_npwhere_reference_based[i][j] == 0, prev_gray[i][j], corrected_frame_npwhere_reference_based[i][j])
+
+    cv2.imwrite(output_path, corrected_frame)
+
+
+    print(f"Current frame con motion correction guardado como {output_path}")
+
+    return
