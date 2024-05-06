@@ -319,3 +319,35 @@ def write_encoded_file(image_path, symbols, codes, output_path):
         byte_data = int(encoded_file, 2).to_bytes((len(encoded_file) + 7) // 8, byteorder='big')
         f.write(byte_data)
     return
+
+def bin_to_string(bytes):
+    '''
+    Función utilizada en read_and_decode_file
+    Recibe el contenido de un archivo binario y devuelve un string con el mismo
+    '''
+
+    # Utilizamos la función format() con '08b' para obtener una cadena de bits de 8 dígitos por byte
+    string = ''.join(format(byte, '08b') for byte in bytes)
+    return string
+
+def read_fillout_number(string):
+    '''
+    Función utilizada en read_and_decode_file
+    Recibe un string y devuelve el número entero correspondiente a ese string en binario.
+    '''
+    fillout_number = int(string, 2)
+    return fillout_number
+
+def read_and_decode_file(bin_path):
+    '''
+    Lee el archivo binario, halla el fillout_number y lo usa para obtener el mensaje original
+    '''
+    with open(bin_path, 'rb') as file:
+        file_content = file.read()
+        decoded_string = bin_to_string(file_content)
+        fillout_number = read_fillout_number(decoded_string[:8])
+        message = decoded_string[8+fillout_number:]
+        print(f'Cadena binaria: {decoded_string}')
+        print(f'Primeros 8 bits: {decoded_string[:8]}')
+        print(f'Número entero: {fillout_number}')
+        print(f'Imagen codificado: {message}')
