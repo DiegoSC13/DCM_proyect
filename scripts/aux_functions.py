@@ -3,6 +3,7 @@ import os
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy.fftpack import dctn, idctn
+import huffman
 
 def extract_frames(video_file, frame_nums, output_folder):
     '''
@@ -273,4 +274,48 @@ def plot_two_images(img1_path, img2_path):
 
     plt.tight_layout()  # Ajustar espaciado entre subplots
     plt.show()
+    return
+
+def count_pixel_values(image_path):
+    image_array = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+    print(image_array.shape)
+    rows, columns = image_array.shape
+    # Redimensionar el arreglo a una sola dimensión
+    array_1d = image_array.reshape(rows * columns)
+    values, counts = np.unique(image_array, return_counts=True)
+    result = [(str(value), count) for value, count in zip(values, counts) if count > 0]
+    return result
+
+def huffman_codebook(counted_pixels):
+    #img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE).astype(np.int16)
+    #print(img.shape)
+    # Crea un árbol de Huffman a partir de las probabilidades
+    arbol_huffman = huffman.codebook(counted_pixels) #Normaliza y devuelve lista
+
+    # Imprime la codificación de cada variable
+    simbolos = []
+    codigos = []
+    for simbolo, codigo in arbol_huffman.items():
+        print(f'Símbolo: {simbolo}, Código Huffman: {codigo}')
+        simbolos.append(simbolo)
+        codigos.append(codigo)
+
+    return np.array([int(simbolo) for simbolo in simbolos]), np.array(codigos)
+
+def write_encoded_file(image_path, symbols, codes, output_path):
+    encoded_file = ''
+    image_array = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+    print(image_array.shape)
+    rows, columns = image_array.shape
+    # Redimensionar el arreglo a una sola dimensión
+    array_1d = image_array.reshape(rows * columns)
+    for i in range(len(array_1d)):
+        j = np.where(symbols == array_1d[i])
+        print('j: ', j[0][0])
+        encoded_file = encoded_file + codes[j[0][0]]
+    print(encoded_file)
+    with open(output_path, 'wb') as f:
+        # Convertir la cadena de bits en una secuencia de bytes
+        byte_data = int(encoded_file, 2).to_bytes((len(encoded_file) + 7) // 8, byteorder='big')
+        f.write(byte_data)
     return
