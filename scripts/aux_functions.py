@@ -351,3 +351,23 @@ def read_and_decode_file(bin_path):
         print(f'Primeros 8 bits: {decoded_string[:8]}')
         print(f'Número entero: {fillout_number}')
         print(f'Imagen codificado: {message}')
+    return
+
+def decode_symbols(message, symbols, codes):
+    '''
+    Recibe como entrada el mensaje, y el huffman_codebook.
+    Devuelve los valores originales de la imagen antes de codificarla.
+    TODO: Cuando haga un encabezado con metada tengo que pasarle las dimensiones
+          originales de la imagen para hacer reshape, ahora esta flatten.
+    '''
+    decoded_symbols = []
+    coded_symbol = ''
+    for c in message:
+        coded_symbol += c
+        if coded_symbol in codes:
+            #print(coded_symbol)
+            i = np.where(codes == coded_symbol)
+            decoded_symbols.append(symbols[i][0]) #No sé por qué lleva ese 0 ahí..
+            coded_symbol = ''
+
+    return np.array(decoded_symbols)
