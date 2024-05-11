@@ -338,7 +338,7 @@ def read_fillout_number(string):
     fillout_number = int(string, 2)
     return fillout_number
 
-def read_and_decode_file(bin_path):
+def read_file(bin_path):
     '''
     Lee el archivo binario, halla el fillout_number y lo usa para obtener el mensaje original
     '''
