@@ -302,6 +302,21 @@ def huffman_codebook(counted_pixels):
 
     return np.array([int(simbolo) for simbolo in simbolos]), np.array(codigos)
 
+def add_fillout_number(message):
+    '''
+    Función utilizada en write_encoded_file
+    Recibe el mensaje codificado, completa con 0s para tener largo en bytes
+    y agrega número de 0s agregados para correcta decodificación
+    '''
+    len_message = len(message)
+    fillout_number = 8 - len_message % 8
+    print('Fillout_number: ', fillout_number)
+    for i in range(fillout_number):
+        message = '0' + message
+    message = format(fillout_number, '08b') + message
+    print(message)
+    return message
+
 def write_encoded_file(image_path, symbols, codes, output_path):
     encoded_file = ''
     image_array = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
@@ -311,13 +326,14 @@ def write_encoded_file(image_path, symbols, codes, output_path):
     array_1d = image_array.reshape(rows * columns)
     for i in range(len(array_1d)):
         j = np.where(symbols == array_1d[i])
-        print('j: ', j[0][0])
+        #print('j: ', j[0][0])
         encoded_file = encoded_file + codes[j[0][0]]
-    print(encoded_file)
+    print('Largo de la imagen codificada (mensaje)', len(encoded_file))
+    bytes_to_write = add_fillout_number(encoded_file)
     with open(output_path, 'wb') as f:
         # Convertir la cadena de bits en una secuencia de bytes
-        byte_data = int(encoded_file, 2).to_bytes((len(encoded_file) + 7) // 8, byteorder='big')
-        f.write(byte_data)
+        final_bytes = int(bytes_to_write, 2).to_bytes((len(bytes_to_write) + 7) // 8, byteorder='big')
+        f.write(final_bytes)
     return
 
 def bin_to_string(bytes):
@@ -338,7 +354,7 @@ def read_fillout_number(string):
     fillout_number = int(string, 2)
     return fillout_number
 
-def read_file(bin_path):
+def read_bin_file(bin_path):
     '''
     Lee el archivo binario, halla el fillout_number y lo usa para obtener el mensaje original
     '''
@@ -351,9 +367,9 @@ def read_file(bin_path):
         print(f'Primeros 8 bits: {decoded_string[:8]}')
         print(f'Número entero: {fillout_number}')
         print(f'Imagen codificado: {message}')
-    return
+    return message
 
-def decode_symbols(message, symbols, codes):
+def decode_symbols(message, symbols, codes, dimension):
     '''
     Recibe como entrada el mensaje, y el huffman_codebook.
     Devuelve los valores originales de la imagen antes de codificarla.
@@ -370,4 +386,4 @@ def decode_symbols(message, symbols, codes):
             decoded_symbols.append(symbols[i][0]) #No sé por qué lleva ese 0 ahí..
             coded_symbol = ''
 
-    return np.array(decoded_symbols)
+    return np.array(decoded_symbols).reshape(dimension)
