@@ -217,8 +217,6 @@ def decoder_motion_correction(current_frame_path, reference_frame_path, flow_x_p
 
     return
 
-#Celda para arreglar la motion compensation
-
 def motion_compensation(reference_frame_path, current_frame_path, flow_x_path, flow_y_path, output_path):
 
     curr_frame = cv2.imread(current_frame_path)
@@ -233,11 +231,10 @@ def motion_compensation(reference_frame_path, current_frame_path, flow_x_path, f
     flow_x = np.load(flow_x_path)
     flow_y = np.load(flow_y_path)
 
-    # Aplicar el flujo óptico al segundo frame
     corrected_reference = np.zeros_like(curr_gray)
     for i in range(corrected_reference.shape[0]):
         for j in range(corrected_reference.shape[1]):
-            corrected_reference[i][j] = ref_gray[j - round(flow_x[i][j])][i - round(flow_y[i][j])]
+            corrected_reference[i][j] = ref_gray[i - round(flow_y[i][j])][j - round(flow_x[i][j])]
 
     #corrected_reference_path = os.path.join(folder_path, 'corrected_reference.tif')
     cv2.imwrite(output_path, corrected_reference)
@@ -249,14 +246,24 @@ def motion_compensation(reference_frame_path, current_frame_path, flow_x_path, f
     plt.show()
     return
 
-def dct(img_path, output_path):
+def dct(image_path, output_path):
     #Leo imagen 
-    img_to_transform = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE).astype(np.int16)
+    img_to_transform = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE).astype(np.int16)
 
     # Ejemplo de cálculo de la DCT
     dct_img = dctn(img_to_transform, norm='ortho')  # DCT tipo 2
     cv2.imwrite(output_path, dct_img)
-    return
+    return dct_img
+
+def quantization(image, q_step, output_path):
+    '''
+    '''
+    image.resize(image.shape[0] * image.shape[1],1)
+    image = image[0]
+    quantized_image = np.array([round(value / q_step) * q_step for value in image])
+    quantized_image.resize(image.shape[0], image.shape[1])
+    cv2.imwrite(output_path, quantized_image)
+    return quantized_image
 
 def idct(img_path, output_path):
     #Leo imagen 
