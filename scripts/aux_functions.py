@@ -37,7 +37,7 @@ def extract_frames(video_file, frame_nums, output_folder):
             gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
             # Guarda el frame como imagen PNG en la carpeta de salida
-            output_path = os.path.join(output_folder, f"frame_{frame_num}.png")
+            output_path = os.path.join(output_folder, f"frame_{frame_num}.tif")
             cv2.imwrite(output_path, gray_frame)
             print(f"Frame {frame_num} guardado como {output_path}")
         else:
@@ -109,7 +109,7 @@ def optical_flow(current_frame_path, reference_frame_path, output_path):
 
     # Visualizar el flujo óptico sobre la imagen actual
     flow_visualization = cv2.cvtColor(curr_frame, cv2.COLOR_BGR2RGB)
-    step = 10  # Espaciado para mostrar los vectores de flujo
+    step = 8  # Espaciado para mostrar los vectores de flujo
     for y in range(0, flow_visualization.shape[0], step):
         for x in range(0, flow_visualization.shape[1], step):
             dx, dy = flow[y, x]
@@ -124,9 +124,6 @@ def optical_flow(current_frame_path, reference_frame_path, output_path):
     print(f"flow_y guardado como {os.path.join(output_path,'flow_y.npy')}")
     cv2.imwrite(os.path.join(output_path,'optical_flow_visualization.png'), flow_visualization)
     print(f"Visualización del flujo óptico guardado como {os.path.join(output_path,'optical_flow_visualization.png')}")
-    # np.save('/Users/diegosilveracoeff/Desktop/Fing/DCM/flow_x.npy', flow[..., 0])
-    # np.save('/Users/diegosilveracoeff/Desktop/Fing/DCM/flow_y.npy', flow[..., 1])
-    # cv2.imwrite('/Users/diegosilveracoeff/Desktop/Fing/DCM/optical_flow_visualization.png', flow_visualization)
 
     #TODO: Estudiar cuál es el problema de esta visualización
     # Mostrar la imagen con el flujo óptico
@@ -220,6 +217,38 @@ def decoder_motion_correction(current_frame_path, reference_frame_path, flow_x_p
 
     return
 
+#Celda para arreglar la motion compensation
+
+def motion_compensation(reference_frame_path, current_frame_path, flow_x_path, flow_y_path, output_path):
+
+    curr_frame = cv2.imread(current_frame_path)
+    ref_frame = cv2.imread(reference_frame_path)
+
+
+    # Convertir las imágenes a escala de grises
+    curr_gray = cv2.cvtColor(curr_frame, cv2.COLOR_BGR2GRAY)
+    ref_gray = cv2.cvtColor(ref_frame, cv2.COLOR_BGR2GRAY)
+
+    # Cargar los archivos flow_x.npy y flow_y.npy
+    flow_x = np.load(flow_x_path)
+    flow_y = np.load(flow_y_path)
+
+    # Aplicar el flujo óptico al segundo frame
+    corrected_reference = np.zeros_like(curr_gray)
+    for i in range(corrected_reference.shape[0]):
+        for j in range(corrected_reference.shape[1]):
+            corrected_reference[i][j] = ref_gray[j - round(flow_x[i][j])][i - round(flow_y[i][j])]
+
+    #corrected_reference_path = os.path.join(folder_path, 'corrected_reference.tif')
+    cv2.imwrite(output_path, corrected_reference)
+
+    plt.imshow(corrected_reference, cmap='gray', vmin=0, vmax=np.max(corrected_reference))
+    plt.colorbar()
+    plt.title('Corrected reference image')
+    plt.axis('off')  # Ocultar ejes
+    plt.show()
+    return
+
 def dct(img_path, output_path):
     #Leo imagen 
     img_to_transform = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE).astype(np.int16)
@@ -271,6 +300,37 @@ def plot_two_images(img1_path, img2_path):
     axs[1].set_title('Coeficientes IDCT en cur_img')
     axs[1].axis('off')
     #plt.colorbar(ax=axs[1])
+
+    plt.tight_layout()  # Ajustar espaciado entre subplots
+    plt.show()
+    return
+
+def plot_three_images(img1_path, img2_path, img3_path, tittles):
+
+    #Leo imágenes
+    img1 = cv2.imread(img1_path)
+    img2 = cv2.imread(img2_path)
+    img3 = cv2.imread(img3_path)
+
+    # Crear figura y ejes para los subplots
+    fig, axs = plt.subplots(1, 3, figsize=(10, 5))
+
+    # Subplot 1
+    axs[0].imshow(img1, cmap='gray', vmin=0, vmax=np.max(img1))
+    axs[0].set_title(tittles[0])
+    axs[0].axis('off')
+    #plt.colorbar(ax=axs[0])
+
+    # Subplot 2
+    axs[1].imshow(img2, cmap='gray', vmin=0, vmax=np.max(img2))
+    axs[1].set_title(tittles[1])
+    axs[1].axis('off')
+    #plt.colorbar(ax=axs[1])
+
+    # Subplot 3
+    axs[2].imshow(img3, cmap='gray', vmin=0, vmax=np.max(img3))
+    axs[2].set_title(tittles[2])
+    axs[2].axis('off')
 
     plt.tight_layout()  # Ajustar espaciado entre subplots
     plt.show()
