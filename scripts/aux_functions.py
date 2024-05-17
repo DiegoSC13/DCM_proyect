@@ -348,7 +348,7 @@ def count_pixel_values(image_path):
     print(image_array.shape)
     rows, columns = image_array.shape
     # Redimensionar el arreglo a una sola dimensión
-    array_1d = image_array.reshape(rows * columns)
+    # array_1d = image_array.reshape(rows * columns)
     values, counts = np.unique(image_array, return_counts=True)
     result = [(str(value), count) for value, count in zip(values, counts) if count > 0]
     return result
