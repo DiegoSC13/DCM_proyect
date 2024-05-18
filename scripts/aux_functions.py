@@ -84,6 +84,12 @@ def subtract_frames(current_frame_path, reference_frame_path, output_path, clip=
 
     return
 
+def energy(image_path):
+    image_name = os.path.basename(image_path)
+    image = cv2.imread(image_path)
+    energy = np.sum(np.abs(image-128))
+    print(f'La energía de {image_name} es {energy}')
+
 def optical_flow(current_frame_path, reference_frame_path, output_path):
     # Cargar las dos imágenes de entrada
     curr_frame = cv2.imread(current_frame_path)
@@ -175,14 +181,8 @@ def quantization(image, q_step, output_path):
     '''
     '''
     flat_image = image.reshape((image.shape[0] * image.shape[1]))
-    print('image.shape: ', image.shape)
-    print('flat_image.shape: ', flat_image.shape)
     quantized_list = [round(value / q_step) * q_step for value in flat_image]
-    print(type(quantized_list))
     quantized_array =  np.array(quantized_list)
-    print(quantized_array[0])
-    print(type(quantized_array))
-    print(quantized_array)
     quantized_image = quantized_array.reshape((image.shape[0], image.shape[1]))
     cv2.imwrite(output_path, quantized_image, [cv2.IMWRITE_TIFF_COMPRESSION, 1])
     return quantized_image, quantized_array
