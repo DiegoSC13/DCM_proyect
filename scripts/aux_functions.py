@@ -193,7 +193,7 @@ def idct(img_path, output_path):
 
     # Ejemplo de cálculo de la DCT
     dct_img = idctn(img_to_antitransform, norm='ortho')  # DCT tipo 2
-    cv2.imwrite(output_path, dct_img)
+    cv2.imwrite(output_path, dct_img, [cv2.IMWRITE_TIFF_COMPRESSION, 1])
     return
 
 def plot_one_img(img_path):
