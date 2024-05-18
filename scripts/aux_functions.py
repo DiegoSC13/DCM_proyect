@@ -38,7 +38,7 @@ def extract_frames(video_file, frame_nums, output_folder):
 
             # Guarda el frame como imagen PNG en la carpeta de salida
             output_path = os.path.join(output_folder, f"frame_{frame_num}.tif")
-            cv2.imwrite(output_path, gray_frame)
+            cv2.imwrite(output_path, gray_frame, [cv2.IMWRITE_TIFF_COMPRESSION, 1])
             print(f"Frame {frame_num} guardado como {output_path}")
         else:
             print(f"No se pudo leer el frame {frame_num}")
@@ -79,7 +79,7 @@ def subtract_frames(current_frame_path, reference_frame_path, output_path, clip=
         diff_img_adjusted = np.abs(diff_img)
 
     # Guarda la imagen resultante como PNG
-    cv2.imwrite(output_path, diff_img_adjusted)
+    cv2.imwrite(output_path, diff_img_adjusted, [cv2.IMWRITE_TIFF_COMPRESSION, 1])
     print(f"Resultado de la resta ajustado y guardado como {output_path}")
 
     return
@@ -122,7 +122,7 @@ def optical_flow(current_frame_path, reference_frame_path, output_path):
     print(f"flow_x guardado como {os.path.join(output_path,'flow_x.npy')}")
     np.save(os.path.join(output_path,'flow_y.npy'), flow[..., 1])
     print(f"flow_y guardado como {os.path.join(output_path,'flow_y.npy')}")
-    cv2.imwrite(os.path.join(output_path,'optical_flow_visualization.png'), flow_visualization)
+    cv2.imwrite(os.path.join(output_path,'optical_flow_visualization.png'), flow_visualization, [cv2.IMWRITE_TIFF_COMPRESSION, 1])
     print(f"Visualización del flujo óptico guardado como {os.path.join(output_path,'optical_flow_visualization.png')}")
 
     #TODO: Estudiar cuál es el problema de esta visualización
@@ -130,90 +130,6 @@ def optical_flow(current_frame_path, reference_frame_path, output_path):
     plt.imshow(cv2.cvtColor(flow_visualization, cv2.COLOR_BGR2RGB))
     plt.axis('off')  # Ocultar ejes
     plt.show()
-
-    return
-
-def encoder_motion_correction(current_frame_path, reference_frame_path, flow_x_path, flow_y_path, output_path):
-    
-    curr_frame = cv2.imread(current_frame_path)
-    prev_frame = cv2.imread(reference_frame_path)
-    
-
-    # Convertir las imágenes a escala de grises
-    curr_gray = cv2.cvtColor(curr_frame, cv2.COLOR_BGR2GRAY)
-    prev_gray = cv2.cvtColor(prev_frame, cv2.COLOR_BGR2GRAY)
-
-    # Cargar los archivos flow_x.npy y flow_y.npy
-    flow_x = np.load(flow_x_path)
-    flow_y = np.load(flow_y_path)
-
-    # Combinar los componentes x e y para obtener la variable flow
-    flow = np.stack((flow_x, flow_y), axis=-1)
-
-
-    # Aplicar el flujo óptico al segundo frame
-    corrected_frame = np.zeros_like(curr_gray)
-    # corrected_frame = curr_gray
-    for y in range(flow.shape[0]):
-        for x in range(flow.shape[1]):
-            dx, dy = flow[y, x]
-            x2 = min(max(x - dx + 1, 0), flow.shape[1] - 1)
-            y2 = min(max(y - dy + 1, 0), flow.shape[0] - 1)
-            corrected_frame[int(np.trunc(y2)), int(np.trunc(x2))] = curr_gray[y, x]
-
-    #Alternativa para manejar sectores sin cubrir
-    # corrected_frame_npwhere_reference_based = corrected_frame.copy()
-
-    # for i in range(corrected_frame.shape[0]):
-    #     for j in range(corrected_frame.shape[1]):
-    #         corrected_frame_npwhere_reference_based[i][j] = np.where(corrected_frame_npwhere_reference_based[i][j] == 0, prev_gray[i][j], corrected_frame_npwhere_reference_based[i][j])
-
-    cv2.imwrite(output_path, corrected_frame)
-
-
-    print(f"Current frame con motion correction guardado como {output_path}")
-
-    return
-
-def decoder_motion_correction(current_frame_path, reference_frame_path, flow_x_path, flow_y_path, output_path):
-    
-    curr_frame = cv2.imread(current_frame_path)
-    prev_frame = cv2.imread(reference_frame_path)
-    
-
-    # Convertir las imágenes a escala de grises
-    curr_gray = cv2.cvtColor(curr_frame, cv2.COLOR_BGR2GRAY)
-    prev_gray = cv2.cvtColor(prev_frame, cv2.COLOR_BGR2GRAY)
-
-    # Cargar los archivos flow_x.npy y flow_y.npy
-    flow_x = np.load(flow_x_path)
-    flow_y = np.load(flow_y_path)
-
-    # Combinar los componentes x e y para obtener la variable flow
-    flow = np.stack((flow_x, flow_y), axis=-1)
-
-
-    # Aplicar el flujo óptico al segundo frame
-    corrected_frame = np.zeros_like(curr_gray)
-    # corrected_frame = curr_gray
-    for y in range(flow.shape[0]):
-        for x in range(flow.shape[1]):
-            dx, dy = flow[y, x]
-            x2 = min(max(x + dx, 0), flow.shape[1] - 1)
-            y2 = min(max(y + dy, 0), flow.shape[0] - 1)
-            corrected_frame[int(np.trunc(y2)), int(np.trunc(x2))] = curr_gray[y, x]
-
-    #Alternativa para manejar sectores sin cubrir
-    # corrected_frame_npwhere_reference_based = corrected_frame.copy()
-
-    # for i in range(corrected_frame.shape[0]):
-    #     for j in range(corrected_frame.shape[1]):
-    #         corrected_frame_npwhere_reference_based[i][j] = np.where(corrected_frame_npwhere_reference_based[i][j] == 0, prev_gray[i][j], corrected_frame_npwhere_reference_based[i][j])
-
-    cv2.imwrite(output_path, corrected_frame)
-
-
-    print(f"Current frame con motion correction guardado como {output_path}")
 
     return
 
@@ -237,7 +153,7 @@ def motion_compensation(reference_frame_path, current_frame_path, flow_x_path, f
             corrected_reference[i][j] = ref_gray[i - round(flow_y[i][j])][j - round(flow_x[i][j])]
 
     #corrected_reference_path = os.path.join(folder_path, 'corrected_reference.tif')
-    cv2.imwrite(output_path, corrected_reference)
+    cv2.imwrite(output_path, corrected_reference, [cv2.IMWRITE_TIFF_COMPRESSION, 1])
 
     plt.imshow(corrected_reference, cmap='gray', vmin=0, vmax=np.max(corrected_reference))
     plt.colorbar()
@@ -258,12 +174,18 @@ def dct(image_path, output_path):
 def quantization(image, q_step, output_path):
     '''
     '''
-    image.resize(image.shape[0] * image.shape[1],1)
-    image = image[0]
-    quantized_image = np.array([round(value / q_step) * q_step for value in image])
-    quantized_image.resize(image.shape[0], image.shape[1])
-    cv2.imwrite(output_path, quantized_image)
-    return quantized_image
+    flat_image = image.reshape((image.shape[0] * image.shape[1]))
+    print('image.shape: ', image.shape)
+    print('flat_image.shape: ', flat_image.shape)
+    quantized_list = [round(value / q_step) * q_step for value in flat_image]
+    print(type(quantized_list))
+    quantized_array =  np.array(quantized_list)
+    print(quantized_array[0])
+    print(type(quantized_array))
+    print(quantized_array)
+    quantized_image = quantized_array.reshape((image.shape[0], image.shape[1]))
+    cv2.imwrite(output_path, quantized_image, [cv2.IMWRITE_TIFF_COMPRESSION, 1])
+    return quantized_image, quantized_array
 
 def idct(img_path, output_path):
     #Leo imagen 
@@ -343,12 +265,7 @@ def plot_three_images(img1_path, img2_path, img3_path, tittles):
     plt.show()
     return
 
-def count_pixel_values(image_path):
-    image_array = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
-    print(image_array.shape)
-    rows, columns = image_array.shape
-    # Redimensionar el arreglo a una sola dimensión
-    # array_1d = image_array.reshape(rows * columns)
+def count_pixel_values(image_array):
     values, counts = np.unique(image_array, return_counts=True)
     result = [(str(value), count) for value, count in zip(values, counts) if count > 0]
     return result
@@ -384,16 +301,13 @@ def add_fillout_number(message):
     print(message)
     return message
 
-def write_encoded_file(image_path, symbols, codes, output_path):
+def write_encoded_file(q_array, symbols, codes, output_path):
+    '''
+    '''
     encoded_file = ''
-    image_array = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
-    print(image_array.shape)
-    rows, columns = image_array.shape
-    # Redimensionar el arreglo a una sola dimensión
-    array_1d = image_array.reshape(rows * columns)
-    for i in range(len(array_1d)):
-        j = np.where(symbols == array_1d[i])
-        #print('j: ', j[0][0])
+
+    for i in range(len(q_array)):
+        j = np.where(symbols == q_array[i])
         encoded_file = encoded_file + codes[j[0][0]]
     print('Largo de la imagen codificada (mensaje)', len(encoded_file))
     bytes_to_write = add_fillout_number(encoded_file)
