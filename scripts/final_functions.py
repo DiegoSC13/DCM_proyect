@@ -87,7 +87,7 @@ def subtract_frames(current_frame_path, reference_frame_path, output_path, clip=
 def energy(image_path):
     image_name = os.path.basename(image_path)
     image = cv2.imread(image_path)
-    energy = np.sum(np.abs(image-128))
+    energy = np.sum(np.abs(image))
     print(f'La energía de {image_name} es {energy}')
 
 def optical_flow(current_frame_path, reference_frame_path, output_path):
@@ -181,12 +181,12 @@ def dct_2(image_path, output_path):
     img_to_transform = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE).astype(np.int16)
 
     width, height = img_to_transform.shape
-    dct_img = np.empty((width, height),dtype=int)
+    dct_img = np.empty((width, height))
 
 
     for x in range(0, width, 8):
         for y in range(0, height, 8):
-            block = np.array(img_to_transform[x:x+8,y:y+8], dtype=int)
+            block = np.array(img_to_transform[x:x+8,y:y+8])
             #print(block.shape)
             #print('x,y: ',x,y)
             dct_block = dctn(block, norm='ortho')  # DCT tipo 2
@@ -219,7 +219,7 @@ def plot_one_img(img_path):
     plt.show()
     return
 
-def plot_two_images(img1_path, img2_path):
+def plot_two_images(img1_path, img2_path, tittles):
 
     #Leo imágenes
     img1 = cv2.imread(img1_path)
@@ -230,13 +230,13 @@ def plot_two_images(img1_path, img2_path):
 
     # Subplot 1
     axs[0].imshow(img1, cmap='gray', vmin=0, vmax=np.max(img1))
-    axs[0].set_title('Coeficientes IDCT en ref_img')
+    axs[0].set_title(tittles[0])
     axs[0].axis('off')
     #plt.colorbar(ax=axs[0])
 
     # Subplot 2
     axs[1].imshow(img2, cmap='gray', vmin=0, vmax=np.max(img2))
-    axs[1].set_title('Coeficientes IDCT en cur_img')
+    axs[1].set_title(tittles[1])
     axs[1].axis('off')
     #plt.colorbar(ax=axs[1])
 
@@ -281,15 +281,17 @@ def reorder_array(arr):
     zero_count = 0
     for i in range(n):
         if arr[i] != 0:
-            if i < n - 1 and np.any(arr[i+1:] != 0):
-                flag = 0
-            else:
-                flag = 1
-            result.append((zero_count, arr[i], flag))
+            # if i < n - 1 and np.any(arr[i+1:] != 0):
+            #     flag = 0
+            # else:
+            #     flag = 1
+            # result.append((zero_count, arr[i], flag))
+            result.append((zero_count, arr[i]))
             zero_count = 0
         else:
             zero_count += 1
-    return np.array(result, dtype=[('zero_count', 'i4'), ('value', 'i4'), ('flag', 'i4')])
+    # return np.array(result, dtype=[('zero_count', 'i4'), ('value', 'i4'), ('flag', 'i4')])
+    return np.array(result, dtype=[('zero_count', 'i4'), ('value', 'i4')])
 
 def count_pixel_values(image_array):
     values, counts = np.unique(image_array, return_counts=True)
@@ -339,7 +341,10 @@ def add_fillout_number(message):
     y agrega número de 0s agregados para correcta decodificación
     '''
     len_message = len(message)
-    fillout_number = 8 - len_message % 8
+    if len_message % 8 != 0:
+        fillout_number = 8 - len_message % 8
+    else:
+        fillout_number = 0
     print('Fillout_number: ', fillout_number)
     for i in range(fillout_number):
         message = '0' + message
@@ -356,10 +361,10 @@ def read_bin_file(bin_path):
         decoded_string = bin_to_string(file_content)
         fillout_number = read_fillout_number(decoded_string[:8])
         message = decoded_string[8+fillout_number:]
-        print(f'Cadena binaria: {decoded_string}')
+        #print(f'Cadena binaria: {decoded_string}')
         print(f'Primeros 8 bits: {decoded_string[:8]}')
         print(f'Número entero: {fillout_number}')
-        print(f'Imagen codificado: {message}')
+        #print(f'Imagen codificado: {message}')
     return message
 
 def bin_to_string(bytes):
@@ -380,7 +385,7 @@ def read_fillout_number(string):
     fillout_number = int(string, 2)
     return fillout_number
 
-def decode_symbols_2(message, symbols, codes, dimension):
+def decode_symbols_2(message, symbols, codes):
     '''
     Recibe como entrada el mensaje, y el huffman_codebook.
     Devuelve los valores originales de la imagen antes de codificarla.
@@ -403,7 +408,7 @@ def decode_symbols_2(message, symbols, codes, dimension):
 def reconstruct_array(array_salida, original_length):
     reconstructed_array = np.zeros(original_length, dtype=int)
     index = 0
-    for zero_count, value, flag in array_salida:
+    for zero_count, value in array_salida:
         index += zero_count
         reconstructed_array[index] = value
         index += 1
@@ -432,12 +437,12 @@ def idct_2(img_to_transform, output_path):
     #img_to_transform = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE).astype(np.int16)
 
     width, height = img_to_transform.shape
-    idct_img = np.empty((width, height),dtype=int)
+    idct_img = np.empty((width, height))
     #img_to_antitransform = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE).astype(np.int16)
 
     for x in range(0, width, 8):
         for y in range(0, height, 8):
-            block = np.array(img_to_transform[x:x+8,y:y+8], dtype=int)
+            block = np.array(img_to_transform[x:x+8,y:y+8])
             #print(block.shape)
             #print('x,y: ',x,y)
             idct_block = idctn(block, norm='ortho')  # DCT tipo 2
