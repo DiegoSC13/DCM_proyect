@@ -139,11 +139,10 @@ def optical_flow(current_frame_path, reference_frame_path, output_path):
 
     return
 
-def motion_compensation(reference_frame_path, current_frame_path, flow_x_path, flow_y_path, output_path):
+def motion_compensation_2(reference_frame_path, current_frame_path, flow_x_path, flow_y_path, output_path):
 
     curr_frame = cv2.imread(current_frame_path)
     ref_frame = cv2.imread(reference_frame_path)
-
 
     # Convertir las imágenes a escala de grises
     curr_gray = cv2.cvtColor(curr_frame, cv2.COLOR_BGR2GRAY)
@@ -154,11 +153,20 @@ def motion_compensation(reference_frame_path, current_frame_path, flow_x_path, f
     flow_y = np.load(flow_y_path)
 
     corrected_reference = np.zeros_like(curr_gray)
-    for i in range(corrected_reference.shape[0]):
-        for j in range(corrected_reference.shape[1]):
-            corrected_reference[i][j] = ref_gray[i - round(flow_y[i][j])][j - round(flow_x[i][j])]
+    height, width = corrected_reference.shape
 
-    #corrected_reference_path = os.path.join(folder_path, 'corrected_reference.tif')
+    for i in range(height):
+        for j in range(width):
+            # Calcular los nuevos índices con el flujo
+            new_i = i - round(flow_y[i][j])
+            new_j = j - round(flow_x[i][j])
+
+            # Comprobar si los nuevos índices están dentro de los límites
+            if 0 <= new_i < height and 0 <= new_j < width:
+                corrected_reference[i][j] = ref_gray[new_i][new_j]
+            else:
+                corrected_reference[i][j] = 0  # O algún valor predeterminado
+
     cv2.imwrite(output_path, corrected_reference, [cv2.IMWRITE_TIFF_COMPRESSION, 1])
 
     plt.imshow(corrected_reference, cmap='gray', vmin=0, vmax=np.max(corrected_reference))
@@ -168,12 +176,23 @@ def motion_compensation(reference_frame_path, current_frame_path, flow_x_path, f
     plt.show()
     return
 
-def dct(image_path, output_path):
+def dct_2(image_path, output_path):
     #Leo imagen 
     img_to_transform = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE).astype(np.int16)
 
+    width, height = img_to_transform.shape
+    dct_img = np.empty((width, height),dtype=int)
+
+
+    for x in range(0, width, 8):
+        for y in range(0, height, 8):
+            block = np.array(img_to_transform[x:x+8,y:y+8], dtype=int)
+            #print(block.shape)
+            #print('x,y: ',x,y)
+            dct_block = dctn(block, norm='ortho')  # DCT tipo 2
+            dct_img[x:x+8,y:y+8] = dct_block
     # Ejemplo de cálculo de la DCT
-    dct_img = dctn(img_to_transform, norm='ortho')  # DCT tipo 2
+    #dct_img = dctn(img_to_transform, norm='ortho')  # DCT tipo 2
     cv2.imwrite(output_path, dct_img)
     return dct_img
 
@@ -186,15 +205,6 @@ def quantization(image, q_step, output_path):
     quantized_image = quantized_array.reshape((image.shape[0], image.shape[1]))
     cv2.imwrite(output_path, quantized_image, [cv2.IMWRITE_TIFF_COMPRESSION, 1])
     return quantized_image, quantized_array
-
-def idct(img_path, output_path):
-    #Leo imagen 
-    img_to_antitransform = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE).astype(np.int16)
-
-    # Ejemplo de cálculo de la DCT
-    dct_img = idctn(img_to_antitransform, norm='ortho')  # DCT tipo 2
-    cv2.imwrite(output_path, dct_img, [cv2.IMWRITE_TIFF_COMPRESSION, 1])
-    return
 
 def plot_one_img(img_path):
     
@@ -265,6 +275,22 @@ def plot_three_images(img1_path, img2_path, img3_path, tittles):
     plt.show()
     return
 
+def reorder_array(arr):
+    result = []
+    n = len(arr)
+    zero_count = 0
+    for i in range(n):
+        if arr[i] != 0:
+            if i < n - 1 and np.any(arr[i+1:] != 0):
+                flag = 0
+            else:
+                flag = 1
+            result.append((zero_count, arr[i], flag))
+            zero_count = 0
+        else:
+            zero_count += 1
+    return np.array(result, dtype=[('zero_count', 'i4'), ('value', 'i4'), ('flag', 'i4')])
+
 def count_pixel_values(image_array):
     values, counts = np.unique(image_array, return_counts=True)
     result = [(str(value), count) for value, count in zip(values, counts) if count > 0]
@@ -287,224 +313,6 @@ def huffman_codebook(counted_pixels):
     #return np.array([int(simbolo) for simbolo in simbolos]), np.array(codigos)
     return np.array(simbolos), np.array(codigos)
 
-def add_fillout_number(message):
-    '''
-    Función utilizada en write_encoded_file
-    Recibe el mensaje codificado, completa con 0s para tener largo en bytes
-    y agrega número de 0s agregados para correcta decodificación
-    '''
-    len_message = len(message)
-    fillout_number = 8 - len_message % 8
-    print('Fillout_number: ', fillout_number)
-    for i in range(fillout_number):
-        message = '0' + message
-    message = format(fillout_number, '08b') + message
-    print(message)
-    return message
-
-def write_encoded_file(q_array, symbols, codes, output_path):
-    '''
-    '''
-    encoded_file = ''
-
-    for i in range(len(q_array)):
-        j = np.where(symbols == q_array[i])
-        encoded_file = encoded_file + codes[j[0][0]]
-    print('Largo de la imagen codificada (mensaje)', len(encoded_file))
-    bytes_to_write = add_fillout_number(encoded_file)
-    with open(output_path, 'wb') as f:
-        # Convertir la cadena de bits en una secuencia de bytes
-        final_bytes = int(bytes_to_write, 2).to_bytes((len(bytes_to_write) + 7) // 8, byteorder='big')
-        f.write(final_bytes)
-    return
-
-def bin_to_string(bytes):
-    '''
-    Función utilizada en read_and_decode_file
-    Recibe el contenido de un archivo binario y devuelve un string con el mismo
-    '''
-
-    # Utilizamos la función format() con '08b' para obtener una cadena de bits de 8 dígitos por byte
-    string = ''.join(format(byte, '08b') for byte in bytes)
-    return string
-
-def read_fillout_number(string):
-    '''
-    Función utilizada en read_and_decode_file
-    Recibe un string y devuelve el número entero correspondiente a ese string en binario.
-    '''
-    fillout_number = int(string, 2)
-    return fillout_number
-
-def read_bin_file(bin_path):
-    '''
-    Lee el archivo binario, halla el fillout_number y lo usa para obtener el mensaje original
-    '''
-    with open(bin_path, 'rb') as file:
-        file_content = file.read()
-        decoded_string = bin_to_string(file_content)
-        fillout_number = read_fillout_number(decoded_string[:8])
-        message = decoded_string[8+fillout_number:]
-        print(f'Cadena binaria: {decoded_string}')
-        print(f'Primeros 8 bits: {decoded_string[:8]}')
-        print(f'Número entero: {fillout_number}')
-        print(f'Imagen codificado: {message}')
-    return message
-
-def decode_symbols(message, symbols, codes, dimension):
-    '''
-    Recibe como entrada el mensaje, y el huffman_codebook.
-    Devuelve los valores originales de la imagen antes de codificarla.
-    TODO: Cuando haga un encabezado con metada tengo que pasarle las dimensiones
-          originales de la imagen para hacer reshape, ahora esta flatten.
-    '''
-    decoded_symbols = []
-    coded_symbol = ''
-    for c in message:
-        coded_symbol += c
-        if coded_symbol in codes:
-            #print(coded_symbol)
-            i = np.where(codes == coded_symbol)
-            decoded_symbols.append(symbols[i][0]) #No sé por qué lleva ese 0 ahí..
-            coded_symbol = ''
-
-    return np.array(decoded_symbols).reshape(dimension)
-
-def encoder_reorder(matrix):
-    M = matrix.shape[0]
-    N = matrix.shape[1]
-    #print(M,N)
-    result = []
-
-    for diag in range(M + N - 1):
-        #Si diag es par, recorro de arriba a la derecha hacia abajo a la izquierda
-        if diag % 2 == 0:
-            r = diag if diag < M else M - 1
-            c = 0 if diag < M else diag - M + 1
-        #Si diag es impar, recorro de arriba a la izquierda hacia abajo a la derecha
-        else:
-            r = 0 if diag < N else diag - N + 1
-            c = diag if diag < N else N - 1
-
-        while r >= 0 and c < N and r < M and c >= 0:
-            result.append(matrix[r][c])
-            if diag % 2 == 0:
-                r -= 1
-                c += 1
-            else:
-                r += 1
-                c -= 1
-
-    return result
-
-def decoder_reorder(result, M, N):
-    matrix = np.zeros((M, N), dtype=int)
-    idx = 0
-    
-    for diag in range(M + N - 1):
-        # Si diag es par, recorro de arriba a la derecha hacia abajo a la izquierda
-        if diag % 2 == 0:
-            r = diag if diag < M else M - 1
-            c = 0 if diag < M else diag - M + 1
-        # Si diag es impar, recorro de arriba a la izquierda hacia abajo a la derecha
-        else:
-            r = 0 if diag < N else diag - N + 1
-            c = diag if diag < N else N - 1
-
-        while r >= 0 and c < N and r < M and c >= 0:
-            matrix[r][c] = result[idx]
-            idx += 1
-            if diag % 2 == 0:
-                r -= 1
-                c += 1
-            else:
-                r += 1
-                c -= 1
-
-    return matrix
-
-def trim_zeros(arr):
-    # Encuentra la última posición donde el valor no es cero
-    last_non_zero_index = len(arr) - 1
-    while last_non_zero_index >= 0 and arr[last_non_zero_index] == 0:
-        last_non_zero_index -= 1
-    
-    # La cantidad de ceros eliminados es la diferencia entre la longitud original y el nuevo tamaño
-    zeros_removed = len(arr) - (last_non_zero_index + 1)
-    
-    # Crea el nuevo array cortando los ceros finales
-    trimmed_array = arr[:last_non_zero_index + 1]
-    
-    return np.array(trimmed_array), zeros_removed
-
-def restore_zeros(trimmed_array, zeros_removed):
-    # Agrega los ceros eliminados al final del array recortado
-    restored_array = trimmed_array + [0] * zeros_removed
-    return restored_array
-
-def complete_with_zeros(list, length):
-    """
-    Completa una lista con ceros hasta alcanzar el largo especificado.
-
-    :param lista: Lista original.
-    :param largo: Largo deseado para la lista.
-    :return: Lista completada con ceros hasta alcanzar el largo especificado.
-    """
-    # Calculamos cuántos ceros necesitamos agregar
-    num_zeros = max(0, length - len(list))
-    if num_zeros != 0:
-        # Creamos una nueva lista agregando los ceros necesarios
-        full_list = list + [0] * num_zeros
-    else:
-        full_list = list
-    
-    return full_list
-
-def dct_2(image_path, output_path):
-    #Leo imagen 
-    img_to_transform = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE).astype(np.int16)
-
-    width, height = img_to_transform.shape
-    dct_img = np.empty((width, height),dtype=int)
-
-
-    for x in range(0, width, 8):
-        for y in range(0, height, 8):
-            block = np.array(img_to_transform[x:x+8,y:y+8], dtype=int)
-            #print(block.shape)
-            #print('x,y: ',x,y)
-            dct_block = dctn(block, norm='ortho')  # DCT tipo 2
-            dct_img[x:x+8,y:y+8] = dct_block
-    # Ejemplo de cálculo de la DCT
-    #dct_img = dctn(img_to_transform, norm='ortho')  # DCT tipo 2
-    cv2.imwrite(output_path, dct_img)
-    return dct_img
-
-def reorder_array(arr):
-    result = []
-    n = len(arr)
-    zero_count = 0
-    for i in range(n):
-        if arr[i] != 0:
-            if i < n - 1 and np.any(arr[i+1:] != 0):
-                flag = 0
-            else:
-                flag = 1
-            result.append((zero_count, arr[i], flag))
-            zero_count = 0
-        else:
-            zero_count += 1
-    return np.array(result, dtype=[('zero_count', 'i4'), ('value', 'i4'), ('flag', 'i4')])
-
-def reconstruct_array(array_salida, original_length):
-    reconstructed_array = np.zeros(original_length, dtype=int)
-    index = 0
-    for zero_count, value, flag in array_salida:
-        index += zero_count
-        reconstructed_array[index] = value
-        index += 1
-    return reconstructed_array
-
 def write_encoded_file_2(reordered_array, symbols, codes, output_path):
     '''
     '''
@@ -524,42 +332,100 @@ def write_encoded_file_2(reordered_array, symbols, codes, output_path):
         f.write(final_bytes)
     return
 
-def motion_compensation_2(reference_frame_path, current_frame_path, flow_x_path, flow_y_path, output_path):
+def add_fillout_number(message):
+    '''
+    Función utilizada en write_encoded_file
+    Recibe el mensaje codificado, completa con 0s para tener largo en bytes
+    y agrega número de 0s agregados para correcta decodificación
+    '''
+    len_message = len(message)
+    fillout_number = 8 - len_message % 8
+    print('Fillout_number: ', fillout_number)
+    for i in range(fillout_number):
+        message = '0' + message
+    message = format(fillout_number, '08b') + message
+    print(message)
+    return message
 
-    curr_frame = cv2.imread(current_frame_path)
-    ref_frame = cv2.imread(reference_frame_path)
+def read_bin_file(bin_path):
+    '''
+    Lee el archivo binario, halla el fillout_number y lo usa para obtener el mensaje original
+    '''
+    with open(bin_path, 'rb') as file:
+        file_content = file.read()
+        decoded_string = bin_to_string(file_content)
+        fillout_number = read_fillout_number(decoded_string[:8])
+        message = decoded_string[8+fillout_number:]
+        print(f'Cadena binaria: {decoded_string}')
+        print(f'Primeros 8 bits: {decoded_string[:8]}')
+        print(f'Número entero: {fillout_number}')
+        print(f'Imagen codificado: {message}')
+    return message
 
-    # Convertir las imágenes a escala de grises
-    curr_gray = cv2.cvtColor(curr_frame, cv2.COLOR_BGR2GRAY)
-    ref_gray = cv2.cvtColor(ref_frame, cv2.COLOR_BGR2GRAY)
+def bin_to_string(bytes):
+    '''
+    Función utilizada en read_bin_file
+    Recibe el contenido de un archivo binario y devuelve un string con el mismo
+    '''
 
-    # Cargar los archivos flow_x.npy y flow_y.npy
-    flow_x = np.load(flow_x_path)
-    flow_y = np.load(flow_y_path)
+    # Utilizamos la función format() con '08b' para obtener una cadena de bits de 8 dígitos por byte
+    string = ''.join(format(byte, '08b') for byte in bytes)
+    return string
 
-    corrected_reference = np.zeros_like(curr_gray)
-    height, width = corrected_reference.shape
+def read_fillout_number(string):
+    '''
+    Función utilizada en read_bin_file
+    Recibe un string y devuelve el número entero correspondiente a ese string en binario.
+    '''
+    fillout_number = int(string, 2)
+    return fillout_number
 
-    for i in range(height):
-        for j in range(width):
-            # Calcular los nuevos índices con el flujo
-            new_i = i - round(flow_y[i][j])
-            new_j = j - round(flow_x[i][j])
+def decode_symbols_2(message, symbols, codes, dimension):
+    '''
+    Recibe como entrada el mensaje, y el huffman_codebook.
+    Devuelve los valores originales de la imagen antes de codificarla.
+    TODO: Cuando haga un encabezado con metada tengo que pasarle las dimensiones
+          originales de la imagen para hacer reshape, ahora esta flatten.
+    '''
+    decoded_symbols = []
+    coded_symbol = ''
+    for c in message:
+        coded_symbol += c
+        if coded_symbol in codes:
+            #print(coded_symbol)
+            i = np.where(codes == coded_symbol)
+            decoded_symbols.append(symbols[i][0]) #No sé por qué lleva ese 0 ahí..
+            coded_symbol = ''
+    print(len(decoded_symbols))
+    print(decoded_symbols[2])
+    return np.array(decoded_symbols)
 
-            # Comprobar si los nuevos índices están dentro de los límites
-            if 0 <= new_i < height and 0 <= new_j < width:
-                corrected_reference[i][j] = ref_gray[new_i][new_j]
-            else:
-                corrected_reference[i][j] = 0  # O algún valor predeterminado
+def reconstruct_array(array_salida, original_length):
+    reconstructed_array = np.zeros(original_length, dtype=int)
+    index = 0
+    for zero_count, value, flag in array_salida:
+        index += zero_count
+        reconstructed_array[index] = value
+        index += 1
+    return reconstructed_array
 
-    cv2.imwrite(output_path, corrected_reference, [cv2.IMWRITE_TIFF_COMPRESSION, 1])
+def complete_with_zeros(list, length):
+    """
+    Completa una lista con ceros hasta alcanzar el largo especificado.
 
-    plt.imshow(corrected_reference, cmap='gray', vmin=0, vmax=np.max(corrected_reference))
-    plt.colorbar()
-    plt.title('Corrected reference image')
-    plt.axis('off')  # Ocultar ejes
-    plt.show()
-    return
+    :param lista: Lista original.
+    :param largo: Largo deseado para la lista.
+    :return: Lista completada con ceros hasta alcanzar el largo especificado.
+    """
+    # Calculamos cuántos ceros necesitamos agregar
+    num_zeros = max(0, length - len(list))
+    if num_zeros != 0:
+        # Creamos una nueva lista agregando los ceros necesarios
+        full_list = list + [0] * num_zeros
+    else:
+        full_list = list
+    
+    return full_list
 
 def idct_2(img_to_transform, output_path):
     #Leo imagen 
@@ -581,23 +447,3 @@ def idct_2(img_to_transform, output_path):
     #decoded_residual = idctn(img, norm='ortho')  # DCT tipo 2
     cv2.imwrite(output_path, idct_img, [cv2.IMWRITE_TIFF_COMPRESSION, 1])
     return idct_img
-
-def decode_symbols_2(message, symbols, codes, dimension):
-    '''
-    Recibe como entrada el mensaje, y el huffman_codebook.
-    Devuelve los valores originales de la imagen antes de codificarla.
-    TODO: Cuando haga un encabezado con metada tengo que pasarle las dimensiones
-          originales de la imagen para hacer reshape, ahora esta flatten.
-    '''
-    decoded_symbols = []
-    coded_symbol = ''
-    for c in message:
-        coded_symbol += c
-        if coded_symbol in codes:
-            #print(coded_symbol)
-            i = np.where(codes == coded_symbol)
-            decoded_symbols.append(symbols[i][0]) #No sé por qué lleva ese 0 ahí..
-            coded_symbol = ''
-    print(len(decoded_symbols))
-    print(decoded_symbols[2])
-    return np.array(decoded_symbols)
