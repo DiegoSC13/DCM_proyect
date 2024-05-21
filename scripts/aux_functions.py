@@ -284,7 +284,8 @@ def huffman_codebook(counted_pixels):
         simbolos.append(simbolo)
         codigos.append(codigo)
 
-    return np.array([int(simbolo) for simbolo in simbolos]), np.array(codigos)
+    #return np.array([int(simbolo) for simbolo in simbolos]), np.array(codigos)
+    return np.array(simbolos), np.array(codigos)
 
 def add_fillout_number(message):
     '''
@@ -368,3 +369,75 @@ def decode_symbols(message, symbols, codes, dimension):
             coded_symbol = ''
 
     return np.array(decoded_symbols).reshape(dimension)
+
+def encoder_reorder(matrix):
+    M = matrix.shape[0]
+    N = matrix.shape[1]
+    #print(M,N)
+    result = []
+
+    for diag in range(M + N - 1):
+        #Si diag es par, recorro de arriba a la derecha hacia abajo a la izquierda
+        if diag % 2 == 0:
+            r = diag if diag < M else M - 1
+            c = 0 if diag < M else diag - M + 1
+        #Si diag es impar, recorro de arriba a la izquierda hacia abajo a la derecha
+        else:
+            r = 0 if diag < N else diag - N + 1
+            c = diag if diag < N else N - 1
+
+        while r >= 0 and c < N and r < M and c >= 0:
+            result.append(matrix[r][c])
+            if diag % 2 == 0:
+                r -= 1
+                c += 1
+            else:
+                r += 1
+                c -= 1
+
+    return result
+
+def decoder_reorder(result, M, N):
+    matrix = np.zeros((M, N), dtype=int)
+    idx = 0
+    
+    for diag in range(M + N - 1):
+        # Si diag es par, recorro de arriba a la derecha hacia abajo a la izquierda
+        if diag % 2 == 0:
+            r = diag if diag < M else M - 1
+            c = 0 if diag < M else diag - M + 1
+        # Si diag es impar, recorro de arriba a la izquierda hacia abajo a la derecha
+        else:
+            r = 0 if diag < N else diag - N + 1
+            c = diag if diag < N else N - 1
+
+        while r >= 0 and c < N and r < M and c >= 0:
+            matrix[r][c] = result[idx]
+            idx += 1
+            if diag % 2 == 0:
+                r -= 1
+                c += 1
+            else:
+                r += 1
+                c -= 1
+
+    return matrix
+
+def trim_zeros(arr):
+    # Encuentra la última posición donde el valor no es cero
+    last_non_zero_index = len(arr) - 1
+    while last_non_zero_index >= 0 and arr[last_non_zero_index] == 0:
+        last_non_zero_index -= 1
+    
+    # La cantidad de ceros eliminados es la diferencia entre la longitud original y el nuevo tamaño
+    zeros_removed = len(arr) - (last_non_zero_index + 1)
+    
+    # Crea el nuevo array cortando los ceros finales
+    trimmed_array = arr[:last_non_zero_index + 1]
+    
+    return np.array(trimmed_array), zeros_removed
+
+def restore_zeros(trimmed_array, zeros_removed):
+    # Agrega los ceros eliminados al final del array recortado
+    restored_array = trimmed_array + [0] * zeros_removed
+    return restored_array
