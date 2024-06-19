@@ -38,7 +38,7 @@ def extract_frames(video_file, frame_nums, output_folder):
 
             # Guarda el frame como imagen PNG en la carpeta de salida
             output_path = os.path.join(output_folder, f"frame_{frame_num}.tif")
-            cv2.imwrite(output_path, gray_frame, [cv2.IMWRITE_TIFF_COMPRESSION, 1])
+            cv2.imwrite(output_path, gray_frame)#, [cv2.IMWRITE_TIFF_COMPRESSION, 1])
             print(f"Frame {frame_num} guardado como {output_path}")
         else:
             print(f"No se pudo leer el frame {frame_num}")
@@ -48,15 +48,15 @@ def extract_frames(video_file, frame_nums, output_folder):
 
     return
 
-def subtract_frames(current_frame_path, reference_frame_path, output_path, clip=True):
+def subtract_frames(current_frame_path, reference_frame_path, residual_path, sign_path, clip=True):
     '''
     Función que lee dos imágenes, hace la diferencia, clippea el resultado para guardar en 8 bits y lo guarda en un path especificado
     INPUT: Video file, list with frames indexes, output folder
     OUTPUT: None
     '''
     # Lee las imágenes
-    img1 = cv2.imread(current_frame_path, cv2.IMREAD_GRAYSCALE).astype(np.int16)
-    img2 = cv2.imread(reference_frame_path, cv2.IMREAD_GRAYSCALE).astype(np.int16)
+    img1 = cv2.imread(current_frame_path, cv2.IMREAD_GRAYSCALE)#.astype(np.int8)
+    img2 = cv2.imread(reference_frame_path, cv2.IMREAD_GRAYSCALE)
 
     # Verifica si las imágenes se leyeron correctamente
     if img1 is None or img2 is None:
@@ -73,22 +73,29 @@ def subtract_frames(current_frame_path, reference_frame_path, output_path, clip=
     if clip == True:
         # Clippeo entre -128 y 127, pierdo información de valores de diferencia altos
         diff_img_adjusted = ((diff_img - (-128)) * (255 / (127 - (-128)))).clip(0, 255).astype(np.uint8)
+        sign_diff_img = None
 
     else:
         # Me quedo con el valor absoluto de cada valor, pierdo información de signo pero no de diferencia (misma energía en imagen residual)
         diff_img_adjusted = np.abs(diff_img)
+        sign_diff_img = np.sign(diff_img)
+
+        print('Valor mínimo de diferencia con clip==False: ', np.min(diff_img_adjusted))
+        print('Valor máximo de diferencia con clip==False: ', np.max(diff_img_adjusted))
 
     # Guarda la imagen resultante como PNG
-    cv2.imwrite(output_path, diff_img_adjusted, [cv2.IMWRITE_TIFF_COMPRESSION, 1])
-    print(f"Resultado de la resta ajustado y guardado como {output_path}")
+    cv2.imwrite(residual_path, diff_img_adjusted, [cv2.IMWRITE_TIFF_COMPRESSION, 1])
+    print(f"Resultado de la resta ajustado y guardado como {residual_path}")
+    cv2.imwrite(sign_path, diff_img_adjusted, [cv2.IMWRITE_TIFF_COMPRESSION, 1])
+    print(f"Resultado de la resta ajustado y guardado como {sign_path}")
 
-    return
+    return diff_img_adjusted, sign_diff_img
 
 def energy(image_path):
     image_name = os.path.basename(image_path)
-    image = cv2.imread(image_path)
+    image = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)
     energy = np.sum(np.abs(image))
-    print(f'La energía de {image_name} es {energy}')
+    print(f'La energía de {image_name} es {f"{energy:,.0f}".replace(",", ".")}')
 
 def optical_flow(current_frame_path, reference_frame_path, output_path):
     # Cargar las dos imágenes de entrada
@@ -178,7 +185,7 @@ def motion_compensation_2(reference_frame_path, current_frame_path, flow_x_path,
 
 def dct_2(image_path, output_path):
     #Leo imagen 
-    img_to_transform = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE).astype(np.int16)
+    img_to_transform = cv2.imread(image_path, cv2.IMREAD_UNCHANGED).astype(np.int16)
 
     width, height = img_to_transform.shape
     dct_img = np.empty((width, height))
@@ -209,7 +216,7 @@ def quantization(image, q_step, output_path):
 def plot_one_img(img_path):
     
     #Leo imagen
-    img = cv2.imread(img_path)
+    img = cv2.imread(img_path, cv2.IMREAD_UNCHANGED)
 
     #Ploteo
     plt.imshow(img, cmap='gray', vmin=0, vmax=np.max(img))
@@ -222,8 +229,8 @@ def plot_one_img(img_path):
 def plot_two_images(img1_path, img2_path, tittles):
 
     #Leo imágenes
-    img1 = cv2.imread(img1_path)
-    img2 = cv2.imread(img2_path)
+    img1 = cv2.imread(img1_path, cv2.IMREAD_UNCHANGED)
+    img2 = cv2.imread(img2_path, cv2.IMREAD_UNCHANGED)
 
     # Crear figura y ejes para los subplots
     fig, axs = plt.subplots(1, 2, figsize=(10, 5))
@@ -247,9 +254,11 @@ def plot_two_images(img1_path, img2_path, tittles):
 def plot_three_images(img1_path, img2_path, img3_path, tittles):
 
     #Leo imágenes
-    img1 = cv2.imread(img1_path)
-    img2 = cv2.imread(img2_path)
-    img3 = cv2.imread(img3_path)
+    img1 = cv2.imread(img1_path, cv2.IMREAD_GRAYSCALE)
+    img2 = cv2.imread(img2_path, cv2.IMREAD_GRAYSCALE)
+    img3 = cv2.imread(img3_path, cv2.IMREAD_GRAYSCALE).astype(np.int16)
+
+    print('Valor máximo de img3:', np.max(img3))
 
     # Crear figura y ejes para los subplots
     fig, axs = plt.subplots(1, 3, figsize=(10, 5))
@@ -280,7 +289,9 @@ def reorder_array(arr):
     n = len(arr)
     zero_count = 0
     for i in range(n):
+        print(arr[i])
         if arr[i] != 0:
+            print('Entré al if')
             # if i < n - 1 and np.any(arr[i+1:] != 0):
             #     flag = 0
             # else:

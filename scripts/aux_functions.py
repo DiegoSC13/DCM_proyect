@@ -48,7 +48,7 @@ def extract_frames(video_file, frame_nums, output_folder):
 
     return
 
-def subtract_frames(current_frame_path, reference_frame_path, output_path, clip=True):
+def subtract_frames(current_frame_path, reference_frame_path, residual_path, sign_path, clip=True):
     '''
     Función que lee dos imágenes, hace la diferencia, clippea el resultado para guardar en 8 bits y lo guarda en un path especificado
     INPUT: Video file, list with frames indexes, output folder
@@ -73,16 +73,20 @@ def subtract_frames(current_frame_path, reference_frame_path, output_path, clip=
     if clip == True:
         # Clippeo entre -128 y 127, pierdo información de valores de diferencia altos
         diff_img_adjusted = ((diff_img - (-128)) * (255 / (127 - (-128)))).clip(0, 255).astype(np.uint8)
+        sign_diff_img = None
 
     else:
         # Me quedo con el valor absoluto de cada valor, pierdo información de signo pero no de diferencia (misma energía en imagen residual)
         diff_img_adjusted = np.abs(diff_img)
+        sign_diff_img = np.sign(diff_img)
 
     # Guarda la imagen resultante como PNG
-    cv2.imwrite(output_path, diff_img_adjusted, [cv2.IMWRITE_TIFF_COMPRESSION, 1])
-    print(f"Resultado de la resta ajustado y guardado como {output_path}")
+    cv2.imwrite(residual_path, diff_img_adjusted, [cv2.IMWRITE_TIFF_COMPRESSION, 1])
+    print(f"Resultado de la resta ajustado y guardado como {residual_path}")
+    cv2.imwrite(sign_path, diff_img_adjusted, [cv2.IMWRITE_TIFF_COMPRESSION, 1])
+    print(f"Resultado de la resta ajustado y guardado como {sign_path}")
 
-    return
+    return diff_img_adjusted, sign_diff_img
 
 def energy(image_path):
     image_name = os.path.basename(image_path)
